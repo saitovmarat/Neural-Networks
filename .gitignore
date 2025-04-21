@@ -1,4 +1,3 @@
-venv
-
-dataset/*
-!dataset/dataPreprocessing.ipynb
+venv/
+**/dataset/*
+!**/dataset/dataPreprocessing.ipynb
