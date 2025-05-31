@@ -77,20 +77,19 @@ class NeuralNetwork:
         batch_size = X.shape[0]
         L = len(self.parameters) // 2
         
-        dZ = cache[f'A{L}'] - y 
-        grads[f'dW{L}'] = (cache[f'A{L-1}'].T @ dZ) / batch_size
-        grads[f'db{L}'] = np.sum(dZ, axis=0, keepdims=True) / batch_size
+        dZ = (cache[f'A{L}'] - y) / batch_size
+        grads[f'dW{L}'] = dZ.T @ cache[f'A{L-1}'] # ???
+        grads[f'db{L}'] = np.sum(dZ, axis=0, keepdims=True)
 
         for layer in reversed(range(1, L)):
-            W_next = self.parameters[f'W{layer+1}']
-            dA = dZ @ W_next
+            dA = dZ @ self.parameters[f'W{layer+1}']
             if self.activation == 'relu':
                 dZ = dA * relu_derivative(cache[f'Z{layer}'])
             elif self.activation == 'sigmoid':
                 dZ = dA * sigmoid_derivative(cache[f'Z{layer}']) 
             
-            grads[f'dW{layer}'] = (cache[f'A{layer-1}'].T @ dZ) / batch_size
-            grads[f'db{layer}'] = np.sum(dZ, axis=0, keepdims=True) / batch_size
+            grads[f'dW{layer}'] = dZ.T @ cache[f'A{layer-1}'] # ???
+            grads[f'db{layer}'] = np.sum(dZ, axis=0, keepdims=True)
 
         for layer in range(1, L+1):
             self.parameters[f'W{layer}'] -= learning_rate * grads[f'dW{layer}']
@@ -113,7 +112,7 @@ class NeuralNetwork:
             y_pred = self.predict(X)
             loss = cross_entropy(y, y_pred) if self.task == 'classification' else mse(y, y_pred)
             losses.append(loss)
-            if (epoch+1) % 10 == 0:
+            if (epoch+1) % 100 == 0:
                 print(f"Epoch {epoch+1}/{epochs}, Loss: {loss:.4f}")
         return losses
 
