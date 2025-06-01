@@ -21,7 +21,7 @@ def tanh_derivative(x):
 
 def softmax(x):
     exps = np.exp(x - np.max(x, axis=1, keepdims=True))
-    return exps / np.sum(exps, axis=1, keepdims=True)
+    return exps / (np.sum(exps, axis=1, keepdims=True) + 1e-15)  
 
 def mse(y_true, y_pred):
     return np.mean((y_true - y_pred) ** 2)
@@ -29,6 +29,12 @@ def mse(y_true, y_pred):
 def cross_entropy(y_true, y_pred):
     batch_size = y_true.shape[0]
     return -np.sum(y_true * np.log(y_pred + 1e-15)) / batch_size
+
+def accuracy(y_true, y_pred):
+    y_true_labels = np.argmax(y_true, axis=1)
+    y_pred_labels = np.argmax(y_pred, axis=1)
+    return np.mean(y_true_labels == y_pred_labels)
+
 
 class NeuralNetwork:
     def __init__(self, layer_sizes, activation='relu', task='regression'):
@@ -77,8 +83,12 @@ class NeuralNetwork:
         batch_size = X.shape[0]
         L = len(self.parameters) // 2
         
-        dZ = (cache[f'A{L}'] - y) / batch_size
-        grads[f'dW{L}'] = dZ.T @ cache[f'A{L-1}'] # ???
+        if self.task == 'classification':
+            dZ = cache[f'A{L}'] - y
+        else:
+            dZ = (cache[f'A{L}'] - y) / batch_size
+            
+        grads[f'dW{L}'] = dZ.T @ cache[f'A{L-1}'] 
         grads[f'db{L}'] = np.sum(dZ, axis=0, keepdims=True)
 
         for layer in reversed(range(1, L)):
@@ -88,7 +98,7 @@ class NeuralNetwork:
             elif self.activation == 'sigmoid':
                 dZ = dA * sigmoid_derivative(cache[f'Z{layer}']) 
             
-            grads[f'dW{layer}'] = dZ.T @ cache[f'A{layer-1}'] # ???
+            grads[f'dW{layer}'] = dZ.T @ cache[f'A{layer-1}'] 
             grads[f'db{layer}'] = np.sum(dZ, axis=0, keepdims=True)
 
         for layer in range(1, L+1):
@@ -97,6 +107,7 @@ class NeuralNetwork:
 
     def train(self, X, y, epochs=100, batch_size=32, learning_rate=0.01):
         losses = []
+        
         for epoch in range(epochs):
             permutation = np.random.permutation(X.shape[0])
             X_shuffled = X[permutation]
@@ -110,10 +121,20 @@ class NeuralNetwork:
                 self.backward(X_batch, y_batch, cache, learning_rate)
 
             y_pred = self.predict(X)
-            loss = cross_entropy(y, y_pred) if self.task == 'classification' else mse(y, y_pred)
-            losses.append(loss)
+            if self.task == 'classification':
+                loss = cross_entropy(y, y_pred)
+                acc = accuracy(y, y_pred)
+                losses.append(loss)
+            else:
+                loss = mse(y, y_pred)
+                losses.append(loss)
+                
             if (epoch+1) % 100 == 0:
-                print(f"Epoch {epoch+1}/{epochs}, Loss: {loss:.4f}")
+                if self.task == 'classification':
+                    print(f"Epoch {epoch+1}/{epochs}, Loss: {loss:.4f}, Accuracy: {acc * 100:.2f}%")
+                else:
+                    print(f"Epoch {epoch+1}/{epochs}, Loss: {loss:.4f}")
+                    
         return losses
 
     def predict(self, X):
