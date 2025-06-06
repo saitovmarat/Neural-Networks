@@ -1,40 +1,8 @@
 import numpy as np
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-def sigmoid_derivative(x):
-    s = sigmoid(x)
-    return s * (1 - s)
-
-def relu(x):
-    return np.maximum(0, x)
-
-def relu_derivative(x):    
-    return (x > 0).astype(float)
-
-def tanh(x):
-    return np.tanh(x)
-
-def tanh_derivative(x):
-    return 1 - np.tanh(x) ** 2
-
-def softmax(x):
-    exps = np.exp(x - np.max(x, axis=1, keepdims=True))
-    return exps / (np.sum(exps, axis=1, keepdims=True) + 1e-15)  
-
-def mse(y_true, y_pred):
-    return np.mean((y_true - y_pred) ** 2)
-
-def cross_entropy(y_true, y_pred):
-    batch_size = y_true.shape[0]
-    return -np.sum(y_true * np.log(y_pred + 1e-15)) / batch_size
-
-def accuracy(y_true, y_pred):
-    y_true_labels = np.argmax(y_true, axis=1)
-    y_pred_labels = np.argmax(y_pred, axis=1)
-    return np.mean(y_true_labels == y_pred_labels)
-
+from utils.metrics import relu, relu_derivative, \
+                          sigmoid, sigmoid_derivative, \
+                          softmax, cross_entropy, \
+                          accuracy, mse
 
 class NeuralNetwork:
     def __init__(self, layer_sizes, activation='relu', task='regression'):
@@ -136,7 +104,35 @@ class NeuralNetwork:
                     print(f"Epoch {epoch+1}/{epochs}, Loss: {loss:.4f}")
                     
         return losses
+    
+    def train_loader(self, data_loader, epochs=100, learning_rate=0.01):
+        losses = []
+
+        for epoch in range(epochs):
+            total_loss = 0
+            for X_batch, y_batch in data_loader:
+                X_np = X_batch.numpy()
+                y_np = y_batch.numpy()
+
+                y_pred, cache = self.forward(X_np)
+                self.backward(X_np, y_np, cache, learning_rate)
+
+                if self.task == 'classification':
+                    loss = cross_entropy(y_np, y_pred)
+                else:
+                    loss = mse(y_np, y_pred)
+                total_loss += loss * X_batch.shape[0]
+
+            avg_loss = total_loss / len(data_loader.dataset)
+            losses.append(avg_loss)
+
+            if (epoch+1) % 100 == 0:
+                print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
+        return losses
 
     def predict(self, X):
         y_pred, _ = self.forward(X)
         return y_pred
+
+
