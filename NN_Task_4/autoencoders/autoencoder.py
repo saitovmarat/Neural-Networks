@@ -7,21 +7,23 @@ class Autoencoder(pl.LightningModule):
         super().__init__()
         self.latent_dim = latent_dim
 
-        # Encoder
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, 512),
-            nn.ReLU(),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.1),
             nn.Linear(512, 256),
-            nn.ReLU(),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(0.1),
             nn.Linear(256, latent_dim)
         )
 
-        # Decoder
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, 256),
-            nn.ReLU(),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(0.1),
             nn.Linear(256, 512),
-            nn.ReLU(),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.1),
             nn.Linear(512, input_dim),
             nn.Sigmoid()
         )
@@ -29,19 +31,21 @@ class Autoencoder(pl.LightningModule):
         self.loss_fn = nn.BCELoss()
 
     def forward(self, x):
-        z = self.encoder(x)
-        return self.decoder(z)
+        if x.dim() == 3:
+            x = x.view(x.size(0), -1)
+        return self.decoder(self.encoder(x))
 
     def get_latent(self, x):
-        """Метод для получения сжатого представления"""
+        if x.dim() == 3:
+            x = x.view(x.size(0), -1)  
         return self.encoder(x)
 
     def training_step(self, batch, batch_idx):
         x, _ = batch
-        x = x.view(x.size(0), -1)  # flatten
+        x = x.view(x.size(0), -1)  
         x_recon = self(x)
         loss = self.loss_fn(x_recon, x)
-        self.log("train_recon_loss", loss)
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -49,7 +53,7 @@ class Autoencoder(pl.LightningModule):
         x = x.view(x.size(0), -1)
         x_recon = self(x)
         loss = self.loss_fn(x_recon, x)
-        self.log("val_recon_loss", loss)
+        self.log("val_loss", loss, prog_bar=True, on_epoch=True, on_step=False)
         return loss
 
     def configure_optimizers(self):
