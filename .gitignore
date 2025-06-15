@@ -1,4 +1,7 @@
 venv/
 **/dataset/*
+**/data/*
 !**/dataset/dataPreprocessing.ipynb
-_*
+__*
+
+*logs
